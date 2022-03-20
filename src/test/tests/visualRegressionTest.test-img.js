@@ -1,9 +1,9 @@
 import { puppeteerInit, getSnapshotConfig } from "../test-utils";
-import { getDocument, queries, waitFor } from "pptr-testing-library";
+import { getDocument, queries } from "pptr-testing-library";
 // React-Testing-Library 와 같이 pptr-testing-library도 있어 dom 선택 시 사용 가능
 // 단, pptr-testing-library로 찾은 component는 expect사용 불가
 
-// expect 사용이 필요한 경우 puppeteer의 api만 사용해야함
+// expect 사용이 필요한 경우 puppeteer의 api 사용해야함
 // https://github.com/puppeteer/puppeteer/blob/main/docs/api.md
 
 let page, cleanUp;
@@ -22,6 +22,9 @@ afterAll(async () => {
 });
 
 test("Visual Regression Test", async () => {
+  // 제목이 나타날때까지 기다림 (로딩 기다림)
+  await page.waitForSelector("h3");
+
   // Document 가져옴
   const document = await getDocument(page);
 
@@ -44,23 +47,58 @@ test("Visual Regression Test", async () => {
   expect(firstItem).toBe("first item");
 
   // 스크린샷 찍기
-  const img1 = await page.screenshot({ fullPage: true });
+  const img_test_1 = await page.screenshot({ fullPage: true });
 
   // Snapshot config에 정의한대로 이미지 비교하기
-  let snapshotConfig = getSnapshotConfig("img1");
-  expect(img1).toMatchImageSnapshot(snapshotConfig);
+  let snapshotConfig = getSnapshotConfig("img_test_1");
+  expect(img_test_1).toMatchImageSnapshot(snapshotConfig);
 
   // 삭제버튼 클릭
-  const deleteBtn = await queries.getByRole(document, "button", {
+  const deleteBtn = await queries.getAllByRole(document, "button", {
     name: "삭제",
   });
-  await deleteBtn.click();
+  await deleteBtn[0].click();
   await page.waitForTimeout(1000);
 
   // 스크린샷 찍기
-  const img2 = await page.screenshot({ fullPage: true });
+  const img_test_2 = await page.screenshot({ fullPage: true });
 
   // Snapshot config에 정의한대로 이미지 비교하기
-  snapshotConfig = getSnapshotConfig("img2");
-  expect(img2).toMatchImageSnapshot(snapshotConfig);
+  snapshotConfig = getSnapshotConfig("img_test_2");
+  expect(img_test_2).toMatchImageSnapshot(snapshotConfig);
+});
+
+test("Mocking api test", async () => {
+  // Puppeteer 에 Intereption을 가능하도록 하는 옵션
+  await page.setRequestInterception(true);
+
+  // 특정 API의 response를 강제로 변경하고, 나머지는 그대로 통과
+  page.on("request", (request) => {
+    if (
+      request.url().startsWith("https://jsonplaceholder.typicode.com/todos")
+    ) {
+      request.respond({
+        content: "application/json",
+        body: JSON.stringify([
+          { title: "first item" },
+          { title: "second item" },
+        ]),
+      });
+    } else {
+      request.continue();
+    }
+  });
+
+  // 페이지 새로고침
+  await page.reload();
+
+  // 제목이 나타날때까지 기다림 (로딩 기다림)
+  await page.waitForSelector("h3");
+
+  // 스크린샷 찍기
+  const img_mock_test = await page.screenshot({ fullPage: true });
+
+  // Snapshot config에 정의한대로 이미지 비교하기
+  const snapshotConfig = getSnapshotConfig("img_mock_test");
+  expect(img_mock_test).toMatchImageSnapshot(snapshotConfig);
 });

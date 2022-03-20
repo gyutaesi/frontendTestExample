@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Container,
   Box,
@@ -11,19 +11,42 @@ import {
   Stack,
   TextField,
 } from "@mui/material";
+import axios from "axios";
 
 const App = () => {
   const [todoList, setTodoList] = useState([]);
   const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    getTotoList();
+  }, []);
+
+  const getTotoList = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(
+        "https://jsonplaceholder.typicode.com/todos"
+      );
+      setTodoList(response.data);
+    } catch (e) {
+      console.log(e);
+    }
+    setLoading(false);
+  };
 
   const addItem = () => {
-    setTodoList([...todoList, input]);
-    setInput("");
+    if (input !== "") {
+      setTodoList([{ title: input }, ...todoList]);
+      setInput("");
+    }
   };
 
   const deleteItem = (target) => {
-    setTodoList(todoList.filter((item) => item !== target));
+    setTodoList(todoList.filter((item) => item.title !== target));
   };
+
+  if (loading) return <>로딩중</>;
 
   return (
     <Container>
@@ -46,7 +69,7 @@ const App = () => {
       <Box>
         <List sx={{ width: "100%" }}>
           {todoList.map((item, index) => (
-            <ListItem key={index}>
+            <ListItem key={item.title + index}>
               <FormControlLabel
                 control={
                   <Checkbox
@@ -60,10 +83,10 @@ const App = () => {
                     }}
                   />
                 }
-                label={item}
+                label={item.title}
                 sx={{ width: "100%" }}
               />
-              <Button variant="outlined" onClick={() => deleteItem(item)}>
+              <Button variant="outlined" onClick={() => deleteItem(item.title)}>
                 삭제
               </Button>
             </ListItem>
